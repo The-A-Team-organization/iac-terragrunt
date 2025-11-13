@@ -1,0 +1,96 @@
+
+pipeline {
+    agent any
+
+    parameters {
+        choice(name: 'ENV', choices: ['dev', 'stage', 'prod'], description: 'Select environment')
+    }
+
+    environment {
+        AWS_REGION = "eu-central-1"
+    }
+
+    stages {
+
+        stage('Checkout Repository') {
+            steps {
+                echo "Checking out repository..."
+                checkout scm
+            }
+        }
+
+        stage('Set Environment Variables') {
+            steps {
+                script {
+                    if (params.ENV == 'dev') {
+                        env.TERRAGRUNT_DIR = "env/dev"
+                        env.AWS_ROLE_ARN = "arn:aws:iam::506087227011:role/TerraformRoleDev"
+                        env.AWS_CREDENTIALS_ID = "aws-dev-account"
+
+                    } else if (params.ENV == 'prod') {
+                        env.TERRAGRUNT_DIR = "env/prod"
+                        env.AWS_ROLE_ARN = "arn:aws:iam::896015496924:role/TerraformRoleProd"
+                        env.AWS_CREDENTIALS_ID = "aws-prod-account"
+
+                    } else if (params.ENV == 'stage') {
+						env.TERRAGRUNT_DIR = "env/stage/infr"
+                        env.AWS_ROLE_ARN = "arn:aws:iam::165015980393:role/TerraformRoleStage"
+                        env.AWS_CREDENTIALS_ID = "aws-stage-account"
+
+                    } else {
+                        error "Unknown environment: ${params.ENV}"
+                    }
+
+                    echo "Using environment: ${params.ENV}"
+                    echo "Terragrunt directory: ${env.TERRAGRUNT_DIR}"
+                    echo "Role ARN: ${env.AWS_ROLE_ARN}"
+                }
+            }
+        }
+
+        stage('Terragrunt Version') {
+            steps {
+                sh "terragrunt --version"
+            }
+        }
+
+        stage('Terragrunt Init & Plan') {
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
+                    sh """
+                        export AWS_REGION=${env.AWS_REGION}
+                        cd ${env.TERRAGRUNT_DIR}
+                        ${env.AWS_ROLE_ARN ? "export ROLE_ARN=${env.AWS_ROLE_ARN}" : ""}
+                        terragrunt init
+                        terragrunt plan
+                    """
+                }
+            }
+        }
+
+        stage('Terragrunt Apply') {
+            steps {
+                script {
+                    def userInput = input(
+                        id: 'ProceedApply', message: "Apply changes to ${params.ENV}?", parameters: [
+                            [$class: 'BooleanParameterDefinition', defaultValue: true, description: 'Check to proceed', name: 'Confirm']
+                        ]
+                    )
+                    if (userInput) {
+                        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
+                            sh """
+                                export AWS_REGION=${env.AWS_REGION}
+                                cd ${env.TERRAGRUNT_DIR}
+                                ${env.AWS_ROLE_ARN ? "export ROLE_ARN=${env.AWS_ROLE_ARN}" : ""}
+                                terragrunt apply -auto-approve
+                            """
+                        }
+                    } else {
+                        echo "Apply skipped"
+                    }
+                }
+            }
+        }
+    }
+}
+
