@@ -22,5 +22,9 @@ inputs = {
 
   ami_id     = "ami-0a5b0d219e493191b"
   enable_consul = true
+  enable_iam_ssm = true
+  enable_lb = true
+  enable_web = true
+  enable_db = true
   role_arn = get_env("ROLE_ARN")
 }
