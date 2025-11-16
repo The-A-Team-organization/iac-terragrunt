@@ -9,7 +9,7 @@ remote_state {
   config = {
     region       = "eu-central-1"
     bucket       = "team-a-tf-state-stage"
-    key          = "stage/jenkins/terraform.tfstate"
+    key          = "stage/infrastructure/terraform.tfstate"
     encrypt      = true
     use_lockfile = true
   }
@@ -17,7 +17,6 @@ remote_state {
 
 
 inputs = {
-  enable_jenkins     = true
-  jenkins_role_name  = "jenkins_role_stage"
-  role_arn           = "arn:aws:iam::165015980393:role/TerraformRoleStage"
+  enable_consul  = true
+  role_arn       = get_env("ROLE_ARN")
 }
