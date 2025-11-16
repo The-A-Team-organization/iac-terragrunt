@@ -1,1 +1,15 @@
-**/*.tfstate
+
+.idea
+
+
+env/dev/.terraform.lock.hcl
+env/dev/.terragrunt-cache
+
+env/stage/jenkins/.terragrunt-cache/
+env/stage/jenkins/.terraform.lock.hcl
+
+env/stage/infrastructure/.terraform.lock.hcl
+env/stage/infrastructure/.terragrunt-cache/
+
+env/prod/.terraform.lock.hcl
+env/prd/.terragrunt-cache/
