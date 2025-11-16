@@ -1,84 +1,97 @@
+
 pipeline {
+
     agent any
 
     parameters {
-        choice(name: 'ENV', choices: ['dev', 'prod'], description: 'Environment to destroy')
+        choice(name: 'ENV', choices: ['dev', 'stage', 'prod'], description: 'Environment to destroy')
     }
+
 
     environment {
         AWS_REGION = "eu-central-1"
     }
 
+
     stages {
 
         stage('Checkout Repository') {
             steps {
-                echo "Checking out repository..."
                 checkout scm
             }
         }
 
+
         stage('Set Environment Variables') {
             steps {
                 script {
+
                     if (params.ENV == 'dev') {
                         env.TERRAGRUNT_DIR = "env/dev"
-                        env.AWS_ROLE_ARN = "arn:aws:iam::506087227011:role/TerraformRoleDev"
-                        env.AWS_CREDENTIALS_ID = "aws-dev-account"
-                    } else if (params.ENV == 'prod') {
+                        credsId = "aws-dev-account-id"
+                        env.AWS_CREDENTIALS_ID = "aws-dev-account-key"
+                    }
+
+					else if (params.ENV == 'prod') {
                         env.TERRAGRUNT_DIR = "env/prod"
-                        env.AWS_ROLE_ARN = "arn:aws:iam::896015496924:role/TerraformRoleProd"
-                        env.AWS_CREDENTIALS_ID = "aws-prod-account"
-                    } else {
+                        credsId = "aws-prod-account-id"
+                        env.AWS_CREDENTIALS_ID = "aws-prod-account-key"
+                    }
+
+					else if (params.ENV == 'stage') {
+                        env.TERRAGRUNT_DIR = "env/stage/infrastructure"
+                        credsId = "aws-stage-account-id"
+                        env.AWS_CREDENTIALS_ID = "aws-stage-account-key"
+                    }
+
+					else {
                         error "Unknown environment: ${params.ENV}"
                     }
-                    echo "Destroying environment: ${params.ENV}"
-                    echo "Terragrunt directory: ${env.TERRAGRUNT_DIR}"
-                    echo "Role ARN: ${env.AWS_ROLE_ARN}"
+
+					withCredentials([string(credentialsId: credsId, variable: 'AWS_ACCOUNT_ID')]) {
+						env.AWS_ROLE_ARN = "arn:aws:iam::${AWS_ACCOUNT_ID}:role/TerraformRole${params.ENV.capitalize()}"
+					}
                 }
             }
         }
 
-        stage('Terragrunt Version') {
-            steps {
-                sh "terragrunt --version"
-            }
-        }
 
         stage('Terragrunt Init') {
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
                     sh """
-                        echo "Using ROLE_ARN: ${env.AWS_ROLE_ARN}"
                         export ROLE_ARN=${env.AWS_ROLE_ARN}
                         export AWS_REGION=${env.AWS_REGION}
                         cd ${env.TERRAGRUNT_DIR}
                         terragrunt init
-                        terragrunt plan
                     """
                 }
             }
         }
 
+
         stage('Terragrunt Destroy') {
             steps {
                 script {
+
                     def userInput = input(
                         id: 'ProceedDestroy', message: "Destroy resources in ${params.ENV}?", parameters: [
                             [$class: 'BooleanParameterDefinition', defaultValue: false, description: 'Check to proceed', name: 'Confirm']
                         ]
                     )
+
                     if (userInput) {
                         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
                             sh """
-                                echo "Destroying resources in ${params.ENV}..."
                                 export ROLE_ARN=${env.AWS_ROLE_ARN}
                                 export AWS_REGION=${env.AWS_REGION}
                                 cd ${env.TERRAGRUNT_DIR}
                                 terragrunt destroy -auto-approve
                             """
                         }
-                    } else {
+                    }
+
+					else {
                         echo "Destroy skipped"
                     }
                 }

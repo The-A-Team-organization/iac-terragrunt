@@ -1,10 +1,16 @@
 
-remote_state {
-  backend = "s3"
-  config = {
-    region      = "eu-central-1"
-    encrypt     = true
-  }
+locals {
+  region         = "eu-central-1"
+  module_source  = "github.com/The-A-Team-organization/iac_account_setup.git//modules?ref=TAT-87_Implement_account_setup_infrastructure_via_terraform"
 }
 
 
+terraform {
+  source = local.module_source
+}
+
+
+inputs = {
+  aws_region   = local.region
+  ami_id       = "ami-0a5b0d219e493191b"
+}
