@@ -25,6 +25,6 @@ inputs = {
   env = "prod"
   available_zone = "eu-central-1a"
   birdwatching_dns_name = "birdwatching.pp.ua"
-  birdwatching_ami_id = "ami-0a5b0d219e493191b"
+  birdwatching_ami_id = "ami-004e960cde33f9146"
   role_arn       = get_env("ROLE_ARN")
 }
