@@ -17,11 +17,7 @@ remote_state {
 
 
 inputs = {
-  enable_consul  = true
   enable_iam_ssm = true
-  enable_lb = true
-  enable_web = true
-  enable_db = true
   enable_monitoring = true
   env = "stage"
   available_zone = "eu-central-1c"
